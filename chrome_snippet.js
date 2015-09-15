@@ -30,9 +30,10 @@ var ScrapeAC = (function(){
 
         _query.call( this, strQ, nCurIndex++, aResults );
         setTimeout( function(){
-            if( nCurIndex < nStopAt || aResults[aResults.length-1] != aResults[aResults.length-3] ){
-                _run.call( me, strQ, nCurIndex, nStopAt, aResults );
+            if( nCurIndex < nStopAt && aResults[aResults.length-1].indexOf('XPATH syntax error') != -1 ){
+                _run.call( me, strQ, nCurIndex, nStopAt, aResults, callback );
             }else{
+                aResults.pop();
                 callback.call(me,aResults);
             }
         },nQueryInterval)
@@ -78,25 +79,30 @@ var ScrapeAC = (function(){
                     this.aQueryComplete.push(oListener);
                 }
             }
+            return this;
         },
 
-        queryFinished:function( aResult ){
+        queryFinished:function( aResults ){
             for( var i=0,a=this.aQueryingFinishedListeners,l=a.length; i<l; i++ ){
                 a[i].onQueryingFinished(aResults);
             }
+            return this;
         },
         queryComplete:function( sResponse ){
             for( var i=0,a=this.aQueryComplete,l=a.length; i<l; i++ ){
                 a[i].onQueryComplete(sResponse);
             }
+            return this;
         },
         
         _processResults:function(a){
             this.queryFinished(a);
+            return this;
         },
 
         run:function( query ){
             _run.call( this, query, 0, nMaxQuerys, [], this._processResults );
+            return this;
         }    
     };
 
@@ -125,18 +131,40 @@ var ScrapeAC = (function(){
         }
         //Call the parent/super
         ScrapeAC.prototype._processResults.call( this, table );
+        return this;
     };
     ScrapeAllTables.prototype.listAllTables = function(){
         var query = errorInject.supplant({query:oInjectQry.allTables});
         this.run(query);
+        return this;
     };
 
 
     function ScrapeAllColumns(){};
     ScrapeAllColumns.prototype = new ScrapeAC();
+    ScrapeAllColumns.prototype._processResults = function( a ){
+        var columns = [],
+            reg    = /'(.+)'/;
+
+        if( a && a.map ){
+            columns = a.map( function(s){
+                var data  = reg.exec(s),
+                    table = '';
+                if( data && data.length ){
+                    table = data[1].substring(1);
+                    return table;
+                }
+                return undefined;
+            });
+        }
+        //Call the parent/super
+        ScrapeAC.prototype._processResults.call( this, columns );
+        return this;
+    };
     ScrapeAllColumns.prototype.listAllColumns = function( sTableName ){
         var query = errorInject.supplant({query:oInjectQry.allCols.supplant({table_name:sTableName})});
         this.run(query);
+        return this;
     };
 
     return {
@@ -145,10 +173,38 @@ var ScrapeAC = (function(){
     };
 })();
 
-var a = new ScrapeAC.ScrapeAllTables();
-a.register({
-    onQueryComplete:function( rawResponse ){
+var columns   = ["CHARACTER_SETS", "COLLATIONS", "COLLATION_CHARACTER_SET_APPLICA", "COLUMNS", "COLUMN_PRIVILEGES", "ENGINES", "EVENTS", "FILES", "GLOBAL_STATUS", "GLOBAL_VARIABLES", "KEY_COLUMN_USAGE", "PARTITIONS", "PLUGINS", "PROCESSLIST", "PROFILING", "REFERENTIAL_CONSTRAINTS", "ROUTINES", "SCHEMATA", "SCHEMA_PRIVILEGES", "SESSION_STATUS", "SESSION_VARIABLES", "STATISTICS", "TABLES", "TABLE_CONSTRAINTS", "TABLE_PRIVILEGES", "TRIGGERS", "USER_PRIVILEGES", "VIEWS", "account", "account_transaction", "aircraft", "aircraft_file", "aircraft_maintenance", "aircraft_photo", "aircraftpricing", "aircrafttype", "aircraftusage", "airport", "banner", "booking", "bookingequipment", "bounceAddress", "cancelreason", "closed_banner", "club", "clublocations", "email_send_log", "email_send_queue", "equipment", "file", "filetype", "flightlog", "flightreconlog", "formatpattern", "freq", "ics_send_log", "ics_send_queue", "invoice", "invoice_line", "link", "maintenanceitem", "migrateStaging", "news", "permission", "permissiongroup", "person", "person_aircraft", "person_aircraft_email", "person_aircraft_notify", "person_equipment", "person_newsread", "person_role", "pricing", "pricinginterval", "role", "role_permission", "sharetype", "squawk", "status", "subscriptionplan", "systemconfig", "terms", "timezone"],
+    colSubset = [ "account", "file", "filetype", "invoice", "invoice_line", "permission", "permissiongroup", "person", "person_role", "role", "role_permission", "subscriptionplan", "systemconfig"],
+    tableCols = {};
+
+function ColumnListener( col ){
+    this.col = col;
+    this.onQueryComplete = function( rawResponse ){
         console.log(rawResponse);
+    };
+    this.onQueryingFinished = function( allData ){
+        tableCols[this.col] = allData;
+        console.log(allData);
+    };
+};
+
+function loop( array, curIndex ){
+    if( curIndex < array.length ){
+        var b   = new ScrapeAC.ScrapeAllColumns(),
+            col = array[curIndex],
+            l   = new ColumnListener(col);
+        console.log( '************************ ' + col + ' *********************************' );
+        b.register(l);
+        b.register({
+            onQueryingFinished:function( allData ){
+                loop(array,curIndex+1);
+            }
+        })
+        b.listAllColumns(col);
+    }else{
+        console.log(tableCols);
+        console.log( JSON.stringify(tableCols) );
     }
-});
-a.listAllTables();
+}
+
+loop( colSubset, 0 );
