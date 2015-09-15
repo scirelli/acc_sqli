@@ -91,7 +91,9 @@ var ScrapeAC = (function(){
             }
         },
         
-        _processResults:function(){},
+        _processResults:function(a){
+            this.queryFinished(a);
+        },
 
         run:function( query ){
             _run.call( this, query, 0, nMaxQuerys, [], this._processResults );
@@ -100,8 +102,8 @@ var ScrapeAC = (function(){
 
     ScrapeAC.Listener = function(){};
     ScrapeAC.Listener.prototype = {
-        onQueryingFinished:function(){},
-        onQueryComplete:function(){}
+        onQueryingFinished:function( allData ){},
+        onQueryComplete:function( rawResponse ){}
     };
     
     function ScrapeAllTables(){};
@@ -121,7 +123,8 @@ var ScrapeAC = (function(){
                 return undefined;
             });
         }
-        this.queryFinished(table);
+        //Call the parent/super
+        ScrapeAC.prototype._processResults.call( this, table );
     };
     ScrapeAllTables.prototype.listAllTables = function(){
         var query = errorInject.supplant({query:oInjectQry.allTables});
@@ -143,4 +146,9 @@ var ScrapeAC = (function(){
 })();
 
 var a = new ScrapeAC.ScrapeAllTables();
+a.register({
+    onQueryComplete:function( rawResponse ){
+        console.log(rawResponse);
+    }
+});
 a.listAllTables();
