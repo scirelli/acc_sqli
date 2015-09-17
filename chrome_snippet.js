@@ -52,6 +52,7 @@ var ScrapeAC = (function(){
             },
             success:function( data, textStatus, jqXHR ){
                 aResults.push(data);
+
                 this.queryComplete(data);
             },
             error:function( jqXHR, textStatus, errorThrown ){
@@ -112,60 +113,87 @@ var ScrapeAC = (function(){
         onQueryComplete:function( rawResponse ){}
     };
     
-    function ScrapeAllTables(){};
-    ScrapeAllTables.prototype = new ScrapeAC();
-    ScrapeAllTables.prototype._processResults = function( a ){
-        var tables = [],
-            reg    = /'(.+)'/;
+    function ScrapeAllTables(){
+        ScrapeAC.apply( this, arguments );
+    };
+    ScrapeAllTables.prototype = Object.create(ScrapeAC.prototype,{
+        _processResults:{
+            value:function( a ){
+                var tables = [],
+                    reg    = /'(.+)'/;
 
-        if( a && a.map ){
-            tables = a.map( function(s){
-                var data  = reg.exec(s),
-                    table = '';
-                if( data && data.length ){
-                    table = data[1].substring(1);
-                    return table;
+                if( a && a.map ){
+                    tables = a.map( function(s){
+                        var data  = reg.exec(s),
+                            table = '';
+                        if( data && data.length ){
+                            table = data[1].substring(1);
+                            return table;
+                        }
+                        return undefined;
+                    });
                 }
-                return undefined;
-            });
+                //Call the parent/super
+                ScrapeAC.prototype._processResults.call( this, table );
+                return this;
+            },
+            enumerable: true,
+            configurable: true, 
+            writable: true
+        },
+        listAllTables:{
+            value:function(){
+                var query = errorInject.supplant({query:oInjectQry.allTables});
+                this.run(query);
+                return this;
+            },
+            enumerable: true,
+            configurable: true, 
+            writable: true
         }
-        //Call the parent/super
-        ScrapeAC.prototype._processResults.call( this, table );
-        return this;
+    });
+    ScrapeAllTables.prototype.constructor = ScrapeAllTables;
+
+    function ScrapeAllColumns(){
+        ScrapeAC.apply( this, arguments );
     };
-    ScrapeAllTables.prototype.listAllTables = function(){
-        var query = errorInject.supplant({query:oInjectQry.allTables});
-        this.run(query);
-        return this;
-    };
+    ScrapeAllColumns.prototype = Object.create(ScrapeAC.prototype,{
+        _processResults:{ 
+            value:function( a ){
+                var columns = [],
+                    reg    = /'(.+)'/;
 
-
-    function ScrapeAllColumns(){};
-    ScrapeAllColumns.prototype = new ScrapeAC();
-    ScrapeAllColumns.prototype._processResults = function( a ){
-        var columns = [],
-            reg    = /'(.+)'/;
-
-        if( a && a.map ){
-            columns = a.map( function(s){
-                var data  = reg.exec(s),
-                    table = '';
-                if( data && data.length ){
-                    table = data[1].substring(1);
-                    return table;
+                if( a && a.map ){
+                    columns = a.map( function(s){
+                        var data  = reg.exec(s),
+                            table = '';
+                        if( data && data.length ){
+                            table = data[1].substring(1);
+                            return table;
+                        }
+                        return undefined;
+                    });
                 }
-                return undefined;
-            });
+                //Call the parent/super
+                ScrapeAC.prototype._processResults.call( this, columns );
+                return this;
+            },
+            enumerable: true,
+            configurable: true, 
+            writable: true
+        },
+        listAllColumns:{
+            value:function( sTableName ){
+                var query = errorInject.supplant({query:oInjectQry.allCols.supplant({table_name:sTableName})});
+                this.run(query);
+                return this;
+            },
+            enumerable: true,
+            configurable: true, 
+            writable: true
         }
-        //Call the parent/super
-        ScrapeAC.prototype._processResults.call( this, columns );
-        return this;
-    };
-    ScrapeAllColumns.prototype.listAllColumns = function( sTableName ){
-        var query = errorInject.supplant({query:oInjectQry.allCols.supplant({table_name:sTableName})});
-        this.run(query);
-        return this;
-    };
+    });
+    ScrapeAllColumns.prototype.constructor = ScrapeAllColumns;
 
     return {
         ScrapeAllColumns:ScrapeAllColumns,
@@ -175,12 +203,14 @@ var ScrapeAC = (function(){
 
 var columns   = ["CHARACTER_SETS", "COLLATIONS", "COLLATION_CHARACTER_SET_APPLICA", "COLUMNS", "COLUMN_PRIVILEGES", "ENGINES", "EVENTS", "FILES", "GLOBAL_STATUS", "GLOBAL_VARIABLES", "KEY_COLUMN_USAGE", "PARTITIONS", "PLUGINS", "PROCESSLIST", "PROFILING", "REFERENTIAL_CONSTRAINTS", "ROUTINES", "SCHEMATA", "SCHEMA_PRIVILEGES", "SESSION_STATUS", "SESSION_VARIABLES", "STATISTICS", "TABLES", "TABLE_CONSTRAINTS", "TABLE_PRIVILEGES", "TRIGGERS", "USER_PRIVILEGES", "VIEWS", "account", "account_transaction", "aircraft", "aircraft_file", "aircraft_maintenance", "aircraft_photo", "aircraftpricing", "aircrafttype", "aircraftusage", "airport", "banner", "booking", "bookingequipment", "bounceAddress", "cancelreason", "closed_banner", "club", "clublocations", "email_send_log", "email_send_queue", "equipment", "file", "filetype", "flightlog", "flightreconlog", "formatpattern", "freq", "ics_send_log", "ics_send_queue", "invoice", "invoice_line", "link", "maintenanceitem", "migrateStaging", "news", "permission", "permissiongroup", "person", "person_aircraft", "person_aircraft_email", "person_aircraft_notify", "person_equipment", "person_newsread", "person_role", "pricing", "pricinginterval", "role", "role_permission", "sharetype", "squawk", "status", "subscriptionplan", "systemconfig", "terms", "timezone"],
     colSubset = [ "account", "file", "filetype", "invoice", "invoice_line", "permission", "permissiongroup", "person", "person_role", "role", "role_permission", "subscriptionplan", "systemconfig"],
-    tableCols = {};
+    tableCols = {"account":["ID","ClubID","PlanID","SubscriptionID","CancelledSubscriptionID","StartDate","ExpirationDate","Inactive","LoginOverride","MaintenanceOverride","AccountingOverride","Reminder1Sent","Reminder2Sent","PriceOverride","PaymentMethod","PaymentAccount","PaymentAmount","PayDay","SubscriptionStart","ExpirationEmailSent"],"file":["ID","Title","Description","FileTypeID","FileURL","FileName","Server","CreatorID","CreationDate","ClubID","LastModifiedDate","ModifierID","StatusID","Sort"],"filetype":["ID","Name"],"invoice":["ID","Key","ClubID","Date","Paid","AmountPaid","TransactionID","PaymentMethod","PaymentAccount","PaymentDate","EmailSent","Discount"],"invoice_line":["ID","InvoiceID","Description","Amount","RefID"],"permission":["ID","Name","Description","PermissionGroupID"],"permissiongroup":["ID","Name"],"person":["ID","ClubID","Username","Password","Salt","FirstName","LastName","Email","SecondaryEmail","TertiaryEmail","Phone","WorkPhone","Mobile","Address","City","State","Country","PostalCode","DOB","ProfilePicID","DefaultAircraftID","DefaultInstructorID","DefaultEquipmentID","DisplayContactInfo","ReservationReminder","ReservationCalendarInvites","StartAtHome","CertificateNumber","CertificateDate","MedicalDate","MedicalReminder","BiennialFlightReviewDate","BiennialFlightReviewReminder","ClubReviewDate","ClubReviewReminder","AOPANumber","EAANumber","RegistrationDate","LastAccessDate","LastModifiedDate","ModifierID","CreatorID","CreationDate","IsImported","AdminNotes","LockoutText","Active","ActivationCode","ActivationDate","SingleEngineLand","SingleEngineSea","SingleEngineInstrument","MultiEngineLand","MultiEngineSea","MultiEngineInstrument","LegacySystemResourceID","LegacySystemID","ActivationIP","TermsID","StatusID","ShowFirstTimePopup","RecieveClubWideNotifications","EmergencyPhone","EmergencyContact","ACC_NNUMBER","ACC_PASSWORD","Instructor","InstructorRating","LocationID","External","InstructorNotes","InstructorSort"],"person_role":["PersonID","RoleID"],"role":["ID","Name","Description","ClubID","ReadOnly"],"role_permission":["RoleID","PermissionID"],"subscriptionplan":["ID","Name","Includes_scheduling","Includes_maintenance","Includes_accounting","Active"],"systemconfig":["ID","LogDbCalls","SendEmail"]};
 
 function ColumnListener( col ){
     this.col = col;
     this.onQueryComplete = function( rawResponse ){
-        console.log(rawResponse);
+        if( rawResponse.indexOf('XPATH syntax error') != -1 ){
+            console.log(rawResponse);
+        }
     };
     this.onQueryingFinished = function( allData ){
         tableCols[this.col] = allData;
@@ -207,4 +237,4 @@ function loop( array, curIndex ){
     }
 }
 
-loop( colSubset, 0 );
+//loop( colSubset, 0 );
