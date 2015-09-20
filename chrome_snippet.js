@@ -94,9 +94,11 @@ var baseURL      = 'https://www.aircraftclubs.com/functions/aircraft/getAircraft
                 var data = processData(data);
                 if( data ){
                     if( oTableData[sTable] &&  oTableData[sTable][nRow] ){//TODO:Make this an object with column names instead
-                        oTableData[sTable][nRow].push(data);
+                        oTableData[sTable][nRow][sCol] = data;
                     }else{
-                        oTableData[sTable] = [[data]];
+                        var o = {};
+                        o[sCol] = data;
+                        oTableData[sTable] = [o];
                     }
                 }
                 if( nCol < aCols.length ){
