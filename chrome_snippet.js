@@ -94,10 +94,10 @@ var baseURL      = 'https://www.aircraftclubs.com/functions/aircraft/getAircraft
                 debugger;
                 var data = processData(data);
                 if( data ){
-                    if( oTableData[sTable] ){//TODO: needs to be an array of arrays outer array is the row
-                        oTableData[sTable].push(data);
+                    if( oTableData[sTable] &&  oTableData[sTable][nRow] ){//TODO: needs to be an array of arrays outer array is the row
+                        oTableData[sTable][nRow].push(data);
                     }else{
-                        oTableData[sTable] = [data];
+                        oTableData[sTable] = [[data]];
                     }
                 }
                 if( nCol < aCols.length ){
