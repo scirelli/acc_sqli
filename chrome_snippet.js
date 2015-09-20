@@ -91,10 +91,9 @@ var baseURL      = 'https://www.aircraftclubs.com/functions/aircraft/getAircraft
         
         query( sQuery ).then(
             function(data){
-                debugger;
                 var data = processData(data);
                 if( data ){
-                    if( oTableData[sTable] &&  oTableData[sTable][nRow] ){//TODO: needs to be an array of arrays outer array is the row
+                    if( oTableData[sTable] &&  oTableData[sTable][nRow] ){//TODO:Make this an object with column names instead
                         oTableData[sTable][nRow].push(data);
                     }else{
                         oTableData[sTable] = [[data]];
