@@ -1,3 +1,4 @@
+"use strict";
 if( !String.prototype.supplant ){
     String.prototype.supplant = function(o){
         return this.replace(/{([^{}]*)}/g,function(a,b){
