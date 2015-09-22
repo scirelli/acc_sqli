@@ -46,72 +46,88 @@ var baseURL      = 'https://www.aircraftclubs.com/functions/aircraft/getAircraft
                 deffered.reject(e);
             }
         ).done();
+
         return deffered.promise;
     }
 
     function loopAllTables( nTable, oTableData ){
-        var sTable   = aTables[nTable],
-            deffered = Q.defer();
+        var deffered = Q.defer();
 
-        loopAllRows( sTable, 0, oTableData ).then( function(){
-            nTable++;
-            if( nTable < aTables.length ){
-                loopAllTables( nTable+1, oTableData );
-            }else{
-                deffered.resolve( oTableData );
-            }
-        }).done();
+        function _loopAllTables( nTable, oTableData ){
+            var sTable   = aTables[nTable];
+            loopAllRows( sTable, 0, oTableData ).then( function(){
+                nTable++;
+                if( nTable < aTables.length ){
+                    _loopAllTables( nTable+1, oTableData );
+                }else{
+                    deffered.resolve( oTableData );
+                }
+            }).done();
+        }
+        _loopAllTables( nTable, oTableData );
+
         return deffered.promise;
     }
 
     //Does nothing but keep a count of rows.
     function loopAllRows( sTable, nRow, oTableData ){
-        var aCols    = oTableCols2[sTable].columns,
-            deferred = Q.defer();
-
-        loopAllColumns( sTable, aCols, 0, nRow, oTableData ).then(
-            function(){
-                if( nRow < oTableCols2[sTable].nRowCnt ){
-                    loopAllRows( sTable, nRow+1, oTableData );
-                }else{
-                    deferred.resolve();
+        var deferred = Q.defer();
+        
+        function _loopAllRows( sTable, nRow, oTableData ){
+            var aCols    = oTableCols2[sTable].columns;
+            loopAllColumns( sTable, aCols, 0, nRow, oTableData ).then(
+                function(){
+                    if( nRow < oTableCols2[sTable].nRowCnt ){
+                        _loopAllRows( sTable, nRow+1, oTableData );
+                    }else{
+                        deferred.resolve();
+                    }
+                },
+                function( o ){
+                    deferred.reject(o);
                 }
-            },
-            function( o ){
-                deferred.reject(o);
-            }
-        ).done();
+            ).done();
+        }
+        _loopAllRows( sTable, nRow, oTableData );
 
         return deferred.promise;
     }
+
     function loopAllColumns( sTable, aCols, nCol, nRow, oTableData ){
-        var sCol     = aCols[nCol],
-            deffered = Q.defer(),
-            pbp      = errorInject2.pbp2.supplant({column_list:sCol, table:sTable }),
-            sQuery   = errorInject2.main.supplant({query:pbp,start:nRow+'', subS:'1', subE:'32'});
+        var deffered = Q.defer();
         
-        query( sQuery ).then(
-            function(data){
-                var data = processData(data);
-                if( data ){
-                    if( oTableData[sTable] &&  oTableData[sTable][nRow] ){//TODO:Make this an object with column names instead
-                        oTableData[sTable][nRow][sCol] = data;
-                    }else{
-                        var o = {};
-                        o[sCol] = data;
-                        oTableData[sTable] = [o];
+        function _loopAllColumns(sTable, aCols, nCol, nRow, oTableData ){
+            var sCol     = aCols[nCol],
+                pbp      = errorInject2.pbp2.supplant({column_list:sCol, table:sTable }),
+                sQuery   = errorInject2.main.supplant({query:pbp,start:nRow+'', subS:'1', subE:'32'});
+            query( sQuery ).then(
+                function(data){
+                    var data = processData(data);
+                    if( data ){
+                        if( oTableData[sTable] &&  oTableData[sTable][nRow] ){
+                            oTableData[sTable][nRow][sCol] = data;
+                        }else if( oTableData[sTable] ){
+                            var o = {};
+                            o[sCol] = data;
+                            oTableData[sTable].push(o);
+                        }else{
+                            var o = {};
+                            o[sCol] = data;
+                            oTableData[sTable] = [o];
+                        }
                     }
+                    if( nCol < aCols.length ){
+                        _loopAllColumns( sTable, aCols, nCol+1, nRow, oTableData );
+                    }else{
+                        deffered.resolve();
+                    }
+                },
+                function(o){
+                    deffered.reject(o);
                 }
-                if( nCol < aCols.length ){
-                    loopAllColumns( sTable, aCols, nCol+1, nRow, oTableData );
-                }else{
-                    deffered.resolve();
-                }
-            },
-            function(o){
-                deffered.reject(o);
-            }
-        ).done();
+            ).done();
+        }
+        _loopAllColumns( sTable, aCols, nCol, nRow, oTableData );
         return deffered.promise;
     }
 
